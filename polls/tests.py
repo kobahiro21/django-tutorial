@@ -83,7 +83,17 @@ class QuestionDetailViewTests(TestCase):
         self.assertContains(response, past_question.question_text)
 
 class VoteViewTests(TestCase):
-    def test_vote(self):
+    """
+    Djangoチュートリアル5に追加
+    投票の実行後の確認
+    """
+
+    def test_vote_post(self):
+        """
+        POST Only
+        """
+
+        # 新しい質問と回答を2つ準備
         past_question = create_question(question_text='Past question.', days=-1)
         past_choice_one = create_choice(choice_text='Choice 1', question=past_question)
         past_choice_two = create_choice(choice_text='Choice 2', question=past_question)
@@ -91,16 +101,39 @@ class VoteViewTests(TestCase):
         url = reverse('polls:vote', args=(past_question.id,))
 
         # status_code=302が返ってくる
-        response1 = self.client.post(url, {'choice' : past_choice_one.id})
+        response = self.client.post(url, {'choice' : past_choice_one.id})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse('polls:results', args=(past_question.id,)),
+            status_code=302,
+            target_status_code=200,
+            msg_prefix='',
+            fetch_redirect_response=True
+        )
+
+    def test_vote_post_redirect(self):
+        """
+        POST & Redirect
+        """
+
+        # 新しい質問と回答を2つ準備
+        past_question = create_question(question_text='Past question.', days=-1)
+        past_choice_one = create_choice(choice_text='Choice 1', question=past_question)
+        past_choice_two = create_choice(choice_text='Choice 2', question=past_question)
+
+        url = reverse('polls:vote', args=(past_question.id,))
 
         # 最終的なリダイレクト先のページ情報が返ってくる
-        response2 = self.client.post(url, {'choice' : past_choice_two.id}, follow=True)
+        response = self.client.post(url, {'choice' : past_choice_one.id}, follow=True)
 
-        # print(url)
-        # print(past_question)
-        # print(past_choice_one)
-        # print(past_choice_two)
-        print(response1)
-        print('\n\n')
-        print(response2.content)
-        self.assertEqual('1', '1')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Choice 1 -- 1 vote')
+        self.assertContains(response, 'Choice 2 -- 0 vote')
+        self.assertEqual(response.context['question'].question_text, 'Past question.')
+        self.assertQuerysetEqual(
+            response.context['question'].choice_set.all(),
+            ['<Choice: Choice 1>', '<Choice: Choice 2>'],
+            ordered=False
+        )
